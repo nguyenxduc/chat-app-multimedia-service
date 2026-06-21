@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:4004
+@internalToken = REPLACE_WITH_INTERNAL_API_TOKEN
+@userId = 00000000-0000-4000-8000-000000000001
+@mediaId = REPLACE_WITH_MEDIA_ID
+
+### Health
+GET {{baseUrl}}/health
+
+### Media upload (multipart field name: file)
+POST {{baseUrl}}/media
+X-Internal-Token: {{internalToken}}
+X-User-Id: {{userId}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="hello.txt"
+Content-Type: text/plain
+
+Hello from chat media
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Media metadata
+GET {{baseUrl}}/media/{{mediaId}}/info
+X-Internal-Token: {{internalToken}}
+X-User-Id: {{userId}}
+
+### Media stream
+GET {{baseUrl}}/media/{{mediaId}}
+X-Internal-Token: {{internalToken}}
+X-User-Id: {{userId}}

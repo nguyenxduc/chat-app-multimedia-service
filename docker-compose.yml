@@ -1,0 +1,27 @@
+services:
+  multimedia-service:
+    build:
+      context: .
+      dockerfile: services/multimedia-service/Dockerfile
+    container_name: chatapp-multimedia-service
+    ports:
+      - "${MULTIMEDIA_SERVICE_PORT:-4004}:4004"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      MULTIMEDIA_SERVICE_PORT: ${MULTIMEDIA_SERVICE_PORT:-4004}
+      MULTIMEDIA_UPLOAD_DIR: /data/uploads
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+      ALLOWED_MIME_TYPES: ${ALLOWED_MIME_TYPES:-}
+    volumes:
+      - multimedia-uploads:/data/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  multimedia-uploads:
