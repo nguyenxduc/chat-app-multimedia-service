@@ -7,6 +7,8 @@ const envSchema = z.object({
   MULTIMEDIA_SERVICE_PORT: z.coerce.number().int().min(0).max(65_535).default(4004),
   MULTIMEDIA_UPLOAD_DIR: z.string().default('./data/uploads'),
   INTERNAL_API_TOKEN: z.string().min(16),
+  /** Used to verify upload/download user is a conversation participant. */
+  CHAT_SERVICE_URL: z.string().default(''),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
   ALLOWED_MIME_TYPES: z
     .string()

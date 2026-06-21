@@ -50,3 +50,4 @@ temp/
 .eslintcache
 .prettiercache
 
+services/multimedia-service/data/

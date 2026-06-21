@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 
 import { multimediaProxyService } from '@/services/multimedia-proxy.service';
 import { getAuthenticatedUser } from '@/utils/auth';
-import { mediaIdParamsSchema } from '@/validation/media.schema';
+import { mediaIdParamsSchema, conversationIdHeaderSchema } from '@/validation/media.schema';
 import { asyncHandler, HttpError } from '@chatapp/common';
 
 export const uploadMediaHandler: RequestHandler = asyncHandler(async (req, res) => {
@@ -12,7 +12,12 @@ export const uploadMediaHandler: RequestHandler = asyncHandler(async (req, res) 
     throw new HttpError(400, 'Missing file field "file"');
   }
 
-  const meta = await multimediaProxyService.uploadMedia(user.id, {
+  const rawConversationId = req.headers['x-conversation-id'];
+  const conversationId = conversationIdHeaderSchema.parse(
+    typeof rawConversationId === 'string' ? rawConversationId.trim() : rawConversationId,
+  );
+
+  const meta = await multimediaProxyService.uploadMedia(user.id, conversationId, {
     buffer: file.buffer,
     mimetype: file.mimetype || 'application/octet-stream',
     originalname: file.originalname,

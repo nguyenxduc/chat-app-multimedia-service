@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { HttpError } from '@chatapp/common';
 
+import { assertConversationParticipant } from '@/clients/chat.client';
 import { env } from '@/config/env';
 import type { StoredMediaMeta } from '@/types/media';
 
@@ -31,14 +32,21 @@ export const mediaService = {
     mimeType: string;
     originalFilename: string;
     ownerUserId: string | null;
+    conversationId: string;
   }): Promise<StoredMediaMeta> {
     assertMimeAllowed(params.mimeType);
 
+    if (!params.ownerUserId) {
+      throw new HttpError(401, 'Missing user context');
+    }
+
+    await assertConversationParticipant(params.conversationId, params.ownerUserId);
     await ensureUploadDir();
 
     const id = randomUUID();
     const meta: StoredMediaMeta = {
       id,
+      conversationId: params.conversationId,
       mimeType: params.mimeType,
       size: params.buffer.length,
       originalFilename: path.basename(params.originalFilename) || 'file',
@@ -70,12 +78,10 @@ export const mediaService = {
   },
 
   async assertCanRead(meta: StoredMediaMeta, requestUserId: string | undefined) {
-    if (!meta.ownerUserId) {
-      return;
+    if (!requestUserId) {
+      throw new HttpError(401, 'Missing user context');
     }
-    if (!requestUserId || requestUserId !== meta.ownerUserId) {
-      throw new HttpError(403, 'Forbidden');
-    }
+    await assertConversationParticipant(meta.conversationId, requestUserId);
   },
 
   createReadStreamFor(id: string) {
