@@ -45,6 +45,7 @@ const handleAxiosError = (error: unknown): never => {
 
 export interface MediaMetaDto {
   id: string;
+  conversationId: string;
   mimeType: string;
   size: number;
   originalFilename: string;
@@ -59,6 +60,7 @@ export interface MediaMetaResponse {
 export const multimediaProxyService = {
   async uploadMedia(
     userId: string,
+    conversationId: string,
     file: { buffer: Buffer; mimetype: string; originalname: string },
   ): Promise<MediaMetaDto> {
     try {
@@ -72,6 +74,7 @@ export const multimediaProxyService = {
         headers: {
           ...body.getHeaders(),
           [USER_ID_HEADER]: userId,
+          'x-conversation-id': conversationId,
         },
       });
       return response.data.data;

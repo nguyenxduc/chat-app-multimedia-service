@@ -2,7 +2,8 @@ import { USER_ID_HEADER } from '@chatapp/common';
 import type { RequestHandler } from 'express';
 
 import { mediaService } from '@/services/media.service';
-import { mediaIdParamsSchema } from '@/validation/media.schema';
+import { conversationIdHeaderSchema, mediaIdParamsSchema } from '@/validation/media.schema';
+import { logger } from '@/utils/logger';
 
 export const uploadMedia: RequestHandler = async (req, res, next) => {
   try {
@@ -16,12 +17,30 @@ export const uploadMedia: RequestHandler = async (req, res, next) => {
     const ownerUserId =
       typeof ownerHeader === 'string' && ownerHeader.trim().length > 0 ? ownerHeader.trim() : null;
 
+    const conversationHeader = req.headers['x-conversation-id'];
+    const conversationId = conversationIdHeaderSchema.parse(
+      typeof conversationHeader === 'string' ? conversationHeader.trim() : conversationHeader,
+    );
+
     const meta = await mediaService.saveUpload({
       buffer: file.buffer,
       mimeType: file.mimetype || 'application/octet-stream',
       originalFilename: file.originalname,
       ownerUserId,
+      conversationId,
     });
+
+    logger.info(
+      {
+        mediaId: meta.id,
+        conversationId,
+        userId: ownerUserId,
+        filename: meta.originalFilename,
+        mimeType: meta.mimeType,
+        size: meta.size,
+      },
+      'Media upload completed',
+    );
 
     res.status(201).json({ data: meta });
   } catch (e) {

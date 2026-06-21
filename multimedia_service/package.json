@@ -4,8 +4,9 @@
   "privayte": true,
   "description": "",
   "scripts": {
+    "postinstall": "pnpm --filter @chatapp/common build",
     "build": "pnpm -r --workspace-root=false run build",
-    "dev": "pnpm -r --workspace-root=false run dev",
+    "dev": "pnpm --filter @chatapp/common build && pnpm --filter @chatapp/multimedia-service dev",
     "lint": "pnpm -r --workspace-root=false run lint",
     "format": "pnpm -r --workspace-root=false run format",
     "test": "pnpm -r --workspace-root=false run test"
