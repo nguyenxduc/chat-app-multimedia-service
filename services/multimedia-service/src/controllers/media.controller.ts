@@ -64,7 +64,7 @@ export const getMedia: RequestHandler = async (req, res, next) => {
     const safeName = meta.originalFilename.replace(/["\r\n]/g, '_');
     res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
 
-    const stream = mediaService.createReadStreamFor(id);
+    const stream = await mediaService.getReadStream(id);
     stream.on('error', next);
     stream.pipe(res);
   } catch (e) {

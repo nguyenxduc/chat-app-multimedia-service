@@ -3,16 +3,20 @@ import { createServer } from 'node:http';
 import { createApp } from '@/app';
 import { env } from '@/config/env';
 import { logger } from '@/utils/logger';
+import { ensureBucket } from '@/services/media.service';
 
 const main = async () => {
   try {
+    await ensureBucket();
+    logger.info({ bucket: env.MINIO_BUCKET }, 'MinIO bucket ready');
+
     const app = createApp();
     const server = createServer(app);
 
     const port = env.MULTIMEDIA_SERVICE_PORT;
 
     server.listen(port, () => {
-      logger.info({ port, uploadDir: env.MULTIMEDIA_UPLOAD_DIR }, 'Multimedia service is running');
+      logger.info({ port }, 'Multimedia service is running');
     });
 
     const shutdown = () => {
