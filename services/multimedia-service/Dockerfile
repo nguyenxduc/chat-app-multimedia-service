@@ -15,7 +15,7 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY packages/common/package.json ./packages/common/
 COPY services/multimedia-service/package.json ./services/multimedia-service/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 
 FROM deps AS builder
