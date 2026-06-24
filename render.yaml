@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: chatapp-multimedia-service
+    env: docker
+    dockerfilePath: ./services/multimedia-service/Dockerfile
+    dockerContext: .
+    branch: main
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MULTIMEDIA_SERVICE_PORT
+        value: "4004"
+      - key: INTERNAL_API_TOKEN
+        sync: false
+      - key: CHAT_SERVICE_URL
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_USE_SSL
+        value: "true"
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        value: chatapp-media
+      - key: MAX_UPLOAD_BYTES
+        value: "26214400"
