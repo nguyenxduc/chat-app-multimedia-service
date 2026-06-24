@@ -15,7 +15,7 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY packages/common/package.json ./packages/common/
 COPY services/multimedia-service/package.json ./services/multimedia-service/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 
 FROM deps AS builder
@@ -43,21 +43,22 @@ COPY tsconfig.base.json ./
 COPY packages/common/package.json ./packages/common/
 COPY services/multimedia-service/package.json ./services/multimedia-service/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/packages/common/dist ./packages/common/dist
 COPY --from=builder /app/services/multimedia-service/dist ./services/multimedia-service/dist
 
-RUN mkdir -p /data/uploads && chown -R nodeuser:nodejs /app /data
+RUN chown -R nodeuser:nodejs /app
 
 USER nodeuser
 
 ENV NODE_ENV=production
 ENV MULTIMEDIA_SERVICE_PORT=4004
-ENV MULTIMEDIA_UPLOAD_DIR=/data/uploads
+ENV OTEL_SERVICE_NAME=multimedia-service
 
 EXPOSE 4004
+EXPOSE 9464
 
 WORKDIR /app/services/multimedia-service
 
-CMD [ "node", "dist/index.js" ]
+CMD [ "node", "--import", "./dist/tracing.js", "dist/index.js" ]
