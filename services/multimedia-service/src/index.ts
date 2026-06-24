@@ -3,11 +3,11 @@ import { createServer } from 'node:http';
 import { createApp } from '@/app';
 import { env } from '@/config/env';
 import { logger } from '@/utils/logger';
-import { ensureBucket } from '@/services/media.service';
+import { mediaRepository } from '@/repositories/media.repository';
 
 const main = async () => {
   try {
-    await ensureBucket();
+    await mediaRepository.ensureUploadDir();
     logger.info({ bucket: env.MINIO_BUCKET }, 'MinIO bucket ready');
 
     const app = createApp();

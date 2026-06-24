@@ -1,37 +1,20 @@
-import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-
-import { Client } from 'minio';
 
 import { HttpError } from '@chatapp/common';
 
+import { assertConversationParticipant } from '@/clients/chat.client';
 import { env } from '@/config/env';
 import type { StoredMediaMeta } from '@/types/media';
 
-const minioClient = new Client({
-  endPoint: env.MINIO_ENDPOINT,
-  ...(env.MINIO_PORT !== undefined && { port: env.MINIO_PORT }),
-  useSSL: env.MINIO_USE_SSL,
-  accessKey: env.MINIO_ACCESS_KEY,
-  secretKey: env.MINIO_SECRET_KEY,
-});
-
-const metaKey = (id: string) => `${id}.meta.json`;
-
-const streamToBuffer = (stream: Readable): Promise<Buffer> =>
-  new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
-
-export const ensureBucket = async () => {
-  const exists = await minioClient.bucketExists(env.MINIO_BUCKET);
-  if (!exists) {
-    await minioClient.makeBucket(env.MINIO_BUCKET);
-  }
-};
+export interface IMediaRepository {
+  generateId(): string;
+  ensureUploadDir(): Promise<void>;
+  writeBlob(id: string, buffer: Buffer): Promise<void>;
+  writeMeta(id: string, meta: StoredMediaMeta): Promise<void>;
+  readMetaOrNull(id: string): Promise<StoredMediaMeta | null>;
+  createReadStream(id: string): Readable;
+  blobExistsOrNull(id: string): Promise<true | null>;
+}
 
 const assertMimeAllowed = (mimeType: string) => {
   const allowed = env.ALLOWED_MIME_TYPES;
@@ -41,18 +24,28 @@ const assertMimeAllowed = (mimeType: string) => {
   }
 };
 
-export const mediaService = {
+export class MediaService {
+  constructor(private readonly repository: IMediaRepository) {}
+
   async saveUpload(params: {
     buffer: Buffer;
     mimeType: string;
     originalFilename: string;
     ownerUserId: string | null;
+    conversationId: string;
   }): Promise<StoredMediaMeta> {
     assertMimeAllowed(params.mimeType);
 
-    const id = randomUUID();
+    if (!params.ownerUserId) {
+      throw new HttpError(401, 'Missing user context');
+    }
+
+    await assertConversationParticipant(params.conversationId, params.ownerUserId);
+
+    const id = this.repository.generateId();
     const meta: StoredMediaMeta = {
       id,
+      conversationId: params.conversationId,
       mimeType: params.mimeType,
       size: params.buffer.length,
       originalFilename: params.originalFilename || 'file',
@@ -60,61 +53,43 @@ export const mediaService = {
       createdAt: new Date().toISOString(),
     };
 
-    await minioClient.putObject(env.MINIO_BUCKET, id, params.buffer, params.buffer.length, {
-      'Content-Type': params.mimeType,
-    });
-
-    const metaBuf = Buffer.from(JSON.stringify(meta));
-    await minioClient.putObject(env.MINIO_BUCKET, metaKey(id), metaBuf, metaBuf.length, {
-      'Content-Type': 'application/json',
-    });
+    await this.repository.ensureUploadDir();
+    await this.repository.writeBlob(id, params.buffer);
+    await this.repository.writeMeta(id, meta);
 
     return meta;
-  },
+  }
 
   async getMeta(id: string): Promise<StoredMediaMeta> {
-    try {
-      const stream = await minioClient.getObject(env.MINIO_BUCKET, metaKey(id));
-      const buf = await streamToBuffer(stream);
-      const parsed = JSON.parse(buf.toString('utf8')) as StoredMediaMeta;
-      if (parsed.id !== id) {
-        throw new HttpError(404, 'Media not found');
-      }
-      return parsed;
-    } catch (e) {
-      if ((e as { code?: string }).code === 'NoSuchKey') {
-        throw new HttpError(404, 'Media not found');
-      }
-      throw e;
+    const meta = await this.repository.readMetaOrNull(id);
+    if (!meta || meta.id !== id) {
+      throw new HttpError(404, 'Media not found');
     }
-  },
+    return meta;
+  }
 
-  async assertCanRead(meta: StoredMediaMeta, requestUserId: string | undefined) {
-    if (!meta.ownerUserId) return;
-    if (!requestUserId || requestUserId !== meta.ownerUserId) {
-      throw new HttpError(403, 'Forbidden');
+  async assertCanRead(meta: StoredMediaMeta, requestUserId: string | undefined): Promise<void> {
+    if (!requestUserId) {
+      throw new HttpError(401, 'Missing user context');
     }
-  },
+    await assertConversationParticipant(meta.conversationId, requestUserId);
+  }
+
+  createReadStreamFor(id: string): Readable {
+    return this.repository.createReadStream(id);
+  }
 
   async getReadStream(id: string): Promise<Readable> {
-    try {
-      return await minioClient.getObject(env.MINIO_BUCKET, id);
-    } catch (e) {
-      if ((e as { code?: string }).code === 'NoSuchKey') {
-        throw new HttpError(404, 'Media not found');
-      }
-      throw e;
-    }
-  },
+    return this.repository.createReadStream(id);
+  }
 
-  async assertBlobExists(id: string) {
-    try {
-      await minioClient.statObject(env.MINIO_BUCKET, id);
-    } catch (e) {
-      if ((e as { code?: string }).code === 'NoSuchKey') {
-        throw new HttpError(404, 'Media not found');
-      }
-      throw e;
+  async assertBlobExists(id: string): Promise<void> {
+    const exists = await this.repository.blobExistsOrNull(id);
+    if (!exists) {
+      throw new HttpError(404, 'Media not found');
     }
-  },
-};
+  }
+}
+
+import { mediaRepository } from '@/repositories/media.repository';
+export const mediaService = new MediaService(mediaRepository);
