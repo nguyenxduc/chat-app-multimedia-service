@@ -43,7 +43,7 @@ COPY tsconfig.base.json ./
 COPY packages/common/package.json ./packages/common/
 COPY services/multimedia-service/package.json ./services/multimedia-service/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/packages/common/dist ./packages/common/dist
 COPY --from=builder /app/services/multimedia-service/dist ./services/multimedia-service/dist
