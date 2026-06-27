@@ -22,7 +22,13 @@ const envSchema = z.object({
     ),
   MINIO_ENDPOINT: z.string().default('minio'),
   MINIO_PORT: z.coerce.number().int().min(0).max(65_535).optional(),
-  MINIO_USE_SSL: z.coerce.boolean().default(false),
+  // NOT z.coerce.boolean(): that coerces via JS truthiness, so the literal
+  // string "false" (non-empty) would coerce to `true` and the MinIO client
+  // would attempt SSL against a plaintext server (crashes with EPROTO).
+  MINIO_USE_SSL: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   MINIO_ACCESS_KEY: z.string().default('minioadmin'),
   MINIO_SECRET_KEY: z.string().default('minioadmin'),
   MINIO_BUCKET: z.string().default('chatapp-media'),
